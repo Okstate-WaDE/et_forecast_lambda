@@ -38,8 +38,15 @@ def lambda_handler(event, context):
     url = f'https://api-test.canopeoapp.beardon.com/canopeo/api/v1/EXDwXSR3TY6LhArDeHaHWWxr48MTKr1aHVuSiEMV0ZKodAEnPbeVWeLbp4cy1jp?username={username}'
     
     data = ""
+    
+    beta_user_emails = [
+        "jeff.sadler@okstate.edu",
+        "mamata.pandey@okstate.edu"
+    ]
+
     try:
         response = requests.get(url, headers=headers)
+
         #print("response :: ",response.json())
         response.raise_for_status()  # Raise an error for bad status codes
         
@@ -49,100 +56,101 @@ def lambda_handler(event, context):
         if data:
             first_entry = data[0]
             email = first_entry.get('email')
-            user_id = str(first_entry.get('id'))
-            canopy_cover = str(first_entry.get('canopy_cover'))
-            planting_date = first_entry.get('planting_date')
-            adjustments = first_entry.get('adjustments')
-            original_image = first_entry.get('original_image')
-            processed_image = first_entry.get('processed_image')
-            latitude = str(first_entry.get('latitude'))
-            longitude = str(first_entry.get('longitude'))
-            
-            print(f"Email: {email}, ID: {user_id}")
-            
-            # 2nd step Prepare the data to be written to JSON
-            '''json_data = {
-                "email": email,
-                "id": user_id,
-                "canopy_cover": canopy_cover,
-                "planting_date": planting_date,
-                "adjustments": adjustments,
-                "original_image": original_image,
-                "processed_image": processed_image,
-                "latitude": latitude,
-                "longitude": longitude
-            }
-            
-            # Write data to a JSON file
-            with open('/tmp/data.json', 'w') as json_file:
-                json.dump(json_data, json_file)
-            print("Json file created to store into S3 bucket")
-            
-            #3rd step load json file  into S3
-            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-            
-            json_data = json.dumps(json_data, indent=2)
-            s3_bucket_name = 'et-forecast'
-            s3_object_key = f'{email}#{timestamp}.json'
-            s3_object_key = s3_object_key.replace('"','')
-            
-            s3 = boto3.client('s3')
-            s3.put_object(Body=json_data, Bucket=s3_bucket_name, Key=s3_object_key)'''
-            
-            # 4th step calling et-forecast analysig function
-            response = func1(latitude, longitude)
-            
-            # 5th step sending an email to the user.
-            isEmailValid = True
-            try:
-                print("mail is :: ",email)
-                send_email(email, response)
-            except Exception as e:
-                print("email is not verified",e)
-                isEmailValid = False
-                '''return {
-                   'statusCode': 500,
-                    'body': 'Some issue in Email ..!' #json.dumps(form_data)
-                }'''
-            print(type(response))
-            
-            # new step for s3 storage
-            json_data = {
-                "email": email,
-                "id": user_id,
-                "canopy_cover": canopy_cover,
-                "planting_date": planting_date,
-                "adjustments": adjustments,
-                "original_image": original_image,
-                "processed_image": processed_image,
-                "latitude": latitude,
-                "longitude": longitude,
-                "isEmailValid" : isEmailValid
-            }
-            
-            # Write data to a JSON file
-            with open('/tmp/data.json', 'w') as json_file:
-                json.dump(json_data, json_file)
-            print("Json file created to store into S3 bucket")
-            
-            #3rd step load json file  into S3
-            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-            
-            json_data = json.dumps(json_data, indent=2)
-            s3_bucket_name = 'et-forecast'
-            s3_object_key = f'{email}#{timestamp}.json'
-            s3_object_key = s3_object_key.replace('"','')
-            
-            s3 = boto3.client('s3')
-            s3.put_object(Body=json_data, Bucket=s3_bucket_name, Key=s3_object_key)
-            # ended s3 storage
-            
-            
-            return {
-                'statusCode': 200,
-                'body': "Successfully generated ET-Forecast values and sent an email to the user."#response #json.dumps(form_data)
-            }
-    
+            if email in beta_user_emails:
+                user_id = str(first_entry.get('id'))
+                canopy_cover = str(first_entry.get('canopy_cover'))
+                planting_date = first_entry.get('planting_date')
+                adjustments = first_entry.get('adjustments')
+                original_image = first_entry.get('original_image')
+                processed_image = first_entry.get('processed_image')
+                latitude = str(first_entry.get('latitude'))
+                longitude = str(first_entry.get('longitude'))
+                
+                print(f"Email: {email}, ID: {user_id}")
+                
+                # 2nd step Prepare the data to be written to JSON
+                '''json_data = {
+                    "email": email,
+                    "id": user_id,
+                    "canopy_cover": canopy_cover,
+                    "planting_date": planting_date,
+                    "adjustments": adjustments,
+                    "original_image": original_image,
+                    "processed_image": processed_image,
+                    "latitude": latitude,
+                    "longitude": longitude
+                }
+                
+                # Write data to a JSON file
+                with open('/tmp/data.json', 'w') as json_file:
+                    json.dump(json_data, json_file)
+                print("Json file created to store into S3 bucket")
+                
+                #3rd step load json file  into S3
+                timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+                
+                json_data = json.dumps(json_data, indent=2)
+                s3_bucket_name = 'et-forecast'
+                s3_object_key = f'{email}#{timestamp}.json'
+                s3_object_key = s3_object_key.replace('"','')
+                
+                s3 = boto3.client('s3')
+                s3.put_object(Body=json_data, Bucket=s3_bucket_name, Key=s3_object_key)'''
+                
+                # 4th step calling et-forecast analysig function
+                response = func1(latitude, longitude)
+                
+                # 5th step sending an email to the user.
+                isEmailValid = True
+                try:
+                    print("mail is :: ",email)
+                    send_email(email, response)
+                except Exception as e:
+                    print("email is not verified",e)
+                    isEmailValid = False
+                    '''return {
+                    'statusCode': 500,
+                        'body': 'Some issue in Email ..!' #json.dumps(form_data)
+                    }'''
+                print(type(response))
+                
+                # new step for s3 storage
+                json_data = {
+                    "email": email,
+                    "id": user_id,
+                    "canopy_cover": canopy_cover,
+                    "planting_date": planting_date,
+                    "adjustments": adjustments,
+                    "original_image": original_image,
+                    "processed_image": processed_image,
+                    "latitude": latitude,
+                    "longitude": longitude,
+                    "isEmailValid" : isEmailValid
+                }
+                
+                # Write data to a JSON file
+                with open('/tmp/data.json', 'w') as json_file:
+                    json.dump(json_data, json_file)
+                print("Json file created to store into S3 bucket")
+                
+                #3rd step load json file  into S3
+                timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+                
+                json_data = json.dumps(json_data, indent=2)
+                s3_bucket_name = 'et-forecast'
+                s3_object_key = f'{email}#{timestamp}.json'
+                s3_object_key = s3_object_key.replace('"','')
+                
+                s3 = boto3.client('s3')
+                s3.put_object(Body=json_data, Bucket=s3_bucket_name, Key=s3_object_key)
+                # ended s3 storage
+                
+                
+                return {
+                    'statusCode': 200,
+                    'body': "Successfully generated ET-Forecast values and sent an email to the user."#response #json.dumps(form_data)
+                }
+
     except requests.exceptions.RequestException as e:
         print("Provided username does not contain the data in the GET Api ",e)
         return {
