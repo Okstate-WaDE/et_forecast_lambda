@@ -46,6 +46,9 @@ def lambda_handler(event, context):
         # Process the response as needed
         data = response.json()
         print("d is",len(data))
+        
+        # Beta_users_list
+        beta_users_list = ["mamata.pandey@okstate.edu"]
         if data:
             first_entry = data[0]
             email = first_entry.get('email')
@@ -59,6 +62,11 @@ def lambda_handler(event, context):
             longitude = str(first_entry.get('longitude'))
             
             print(f"Email: {email}, ID: {user_id}")
+            if(email not in beta_users_list):
+                return {
+                    'statusCode': 200,
+                    'body': "Success."#response #json.dumps(form_data)
+                }
             
             # 2nd step Prepare the data to be written to JSON
             '''json_data = {
