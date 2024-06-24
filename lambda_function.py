@@ -24,7 +24,7 @@ def lambda_handler(event, context):
     }
     print("event type :; ",type(event))
     print("event is :: ",event)
-    print("event body type :: ",type(event['body']))
+    #print("event body type :: ",type(event['body']))
     print("request version is :: ",requests.__version__)
     '''print("openmeteo_requests version is::",requests_toolbelt.__version__)
     print("requests_cache version is :: ",requests_cache.__version__)
