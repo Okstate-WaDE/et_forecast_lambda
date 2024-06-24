@@ -41,6 +41,7 @@ def lambda_handler(event, context):
     try:
         response = requests.get(url, headers=headers)
         #print("response :: ",response.json())
+        print("response is :: ",response)
         response.raise_for_status()  # Raise an error for bad status codes
         
         # Process the response as needed
@@ -48,7 +49,7 @@ def lambda_handler(event, context):
         print("d is",len(data))
         
         # Beta_users_list
-        beta_users_list = ["mamata.pandey@okstate.edu"]
+        beta_users_list = ["mamata.pandey@okstate.edu","jeff.sadler@okstate.edu", "saikumar.payyavula@okstate.edu","fieldtest@test.com"]
         if data:
             first_entry = data[0]
             email = first_entry.get('email')
@@ -99,7 +100,8 @@ def lambda_handler(event, context):
             
             # 4th step calling et-forecast analysig function
             response = func1(latitude, longitude)
-            
+            print("et-response type: ",type(response))
+            print("et-response : ",response)
             # 5th step sending an email to the user.
             isEmailValid = True
             try:
@@ -125,7 +127,8 @@ def lambda_handler(event, context):
                 "processed_image": processed_image,
                 "latitude": latitude,
                 "longitude": longitude,
-                "isEmailValid" : isEmailValid
+                "isEmailValid" : isEmailValid,
+                "et-forecast" : response
             }
             
             # Write data to a JSON file
