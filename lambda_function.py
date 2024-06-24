@@ -22,6 +22,8 @@ def lambda_handler(event, context):
     headers = {
         "forecast": "loKjxR1at9N37WgNAUnr9pGWgDQmNy3et6mTgItbLRS6te3SdSGmwOxM5v08JRk"
     }
+    print("event type :; ",type(event))
+    print("event is :: ",event)
     print("event body type :: ",type(event['body']))
     print("request version is :: ",requests.__version__)
     '''print("openmeteo_requests version is::",requests_toolbelt.__version__)
@@ -29,11 +31,18 @@ def lambda_handler(event, context):
     print("retry_requests version is :: ",retry_requests.__version)
     print("requests_toolbelt version is ::",requests_toolbelt.__version__)'''
 
-    data = event['body']
-    print("body is :: ",data)
-    data = json.loads(data)
+    #Handling multiple events structures. 
+    if 'body' in event:
+        data = event['body']
+        print("body is :: ",data)
+        data = json.loads(data)
+    else:
+        data = event
+        print("body is in simple event:: ",data)
+        data = json.dumps(data)
+        data = json.loads(data)
     print("data type is ",type(data))
-    print("uname",data.get('username'))
+    print("username is ",data.get('username'))
     username = data.get('username')
     url = f'https://api-test.canopeoapp.beardon.com/canopeo/api/v1/EXDwXSR3TY6LhArDeHaHWWxr48MTKr1aHVuSiEMV0ZKodAEnPbeVWeLbp4cy1jp?username={username}'
     
