@@ -5,6 +5,7 @@ from requests_toolbelt.multipart.decoder import MultipartDecoder
 import base64
 from datetime import datetime
 import numpy as np
+import csv
 
 #below is mamatas modules
 import os
@@ -44,7 +45,24 @@ def lambda_handler(event, context):
     print("data type is ",type(data))
     print("username is ",data.get('username'))
     username = data.get('username')
-    url = f'https://api-test.canopeoapp.beardon.com/canopeo/api/v1/EXDwXSR3TY6LhArDeHaHWWxr48MTKr1aHVuSiEMV0ZKodAEnPbeVWeLbp4cy1jp?username={username}'
+    #url = f'https://api-test.canopeoapp.beardon.com/canopeo/api/v1/EXDwXSR3TY6LhArDeHaHWWxr48MTKr1aHVuSiEMV0ZKodAEnPbeVWeLbp4cy1jp?username={username}'
+    url=f'https://canopeoapp.com/canopeo/api/v1/EXDwXSR3TY6LhArDeHaHWWxr48MTKr1aHVuSiEMV0ZKodAEnPbeVWeLbp4cy1jp?username={username}'
+    
+    # Specify the CSV file name
+    csv_file = 'users.csv'
+    # Read the CSV file
+    with open(csv_file, mode='r') as file:
+        reader = csv.DictReader(file)
+        users = [row for row in reader]
+
+    # Extracting names from the list of dictionaries
+    usersList = [user['Name'] for user in users]
+    
+    # Print the list of users
+    for user in users:
+        print(user['Name'])
+    print("type ",type(users))
+    
     
     data = ""
     try:
@@ -53,8 +71,10 @@ def lambda_handler(event, context):
         print("response is :: ",response)
         response.raise_for_status()  # Raise an error for bad status codes
         
+        print("test1")
         # Process the response as needed
         data = response.json()
+        print("test2")
         print("d is",len(data))
         
         # Beta_users_list
@@ -72,7 +92,7 @@ def lambda_handler(event, context):
             longitude = str(first_entry.get('longitude'))
             
             print(f"Email: {email}, ID: {user_id}")
-            if(email not in beta_users_list):
+            if(email not in usersList):
                 return {
                     'statusCode': 200,
                     'body': "Success."#response #json.dumps(form_data)
