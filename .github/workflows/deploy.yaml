@@ -3,7 +3,8 @@ name: Deploy Lambda Function
 on:
   push:
     branches:
-      - dev # Change to your default branch
+      - dev
+      - main
 
 jobs:
   deploy:
@@ -16,7 +17,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.12" # Set Python version to 3.12
+          python-version: "3.12"
 
       - name: Install dependencies
         run: |
@@ -32,8 +33,14 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-2 # Replace with your AWS region
+          aws-region: us-east-2
 
-      - name: Deploy Lambda function
+      - name: Deploy Lambda function for dev branch
+        if: github.ref == 'refs/heads/dev'
         run: |
           aws lambda update-function-code --function-name et_forecast_func_test --zip-file fileb://lambda_function.zip
+
+      - name: Deploy Lambda function for main branch
+        if: github.ref == 'refs/heads/main'
+        run: |
+          aws lambda update-function-code --function-name et-forecast-func --zip-file fileb://lambda_function.zip
