@@ -36,4 +36,4 @@ jobs:
 
       - name: Deploy Lambda function
         run: |
-          aws lambda update-function-code --function-name et-forecast-test --zip-file fileb://lambda_function.zip
+          aws lambda update-function-code --function-name et_forecast_func_test --zip-file fileb://lambda_function.zip
