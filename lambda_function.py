@@ -48,10 +48,19 @@ def lambda_handler(event, context):
     #url = f'https://api-test.canopeoapp.beardon.com/canopeo/api/v1/EXDwXSR3TY6LhArDeHaHWWxr48MTKr1aHVuSiEMV0ZKodAEnPbeVWeLbp4cy1jp?username={username}'
     url=f'https://canopeoapp.com/canopeo/api/v1/EXDwXSR3TY6LhArDeHaHWWxr48MTKr1aHVuSiEMV0ZKodAEnPbeVWeLbp4cy1jp?username={username}'
     
-    # Specify the CSV file name
-    csv_file = 'users.csv'
+    # Specify the CSV file name 
+    #csv_file = '/users.csv'
+    #print("file path is :: ",csv_file)
+    
+    # Get the current directory of the lambda function
+    current_dir = os.path.dirname(os.path.realpath(__file__))
+    print("current_dir :: ",current_dir)
+    
+    # Construct the full file path
+    file_path = os.path.join(current_dir, 'users.csv')
+    
     # Read the CSV file
-    with open(csv_file, mode='r') as file:
+    with open(file_path, mode='r') as file:
         reader = csv.DictReader(file)
         users = [row for row in reader]
 
