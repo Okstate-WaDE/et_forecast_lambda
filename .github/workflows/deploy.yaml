@@ -3,7 +3,7 @@ name: Deploy Lambda Function
 on:
   push:
     branches:
-      - main # Change to your default branch
+      - dev # Change to your default branch
 
 jobs:
   deploy:
@@ -36,4 +36,4 @@ jobs:
 
       - name: Deploy Lambda function
         run: |
-          aws lambda update-function-code --function-name test-func3 --zip-file fileb://lambda_function.zip
+          aws lambda update-function-code --function-name et-forecast-test --zip-file fileb://lambda_function.zip
