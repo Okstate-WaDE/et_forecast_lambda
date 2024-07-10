@@ -6,6 +6,7 @@ import base64
 from datetime import datetime
 import numpy as np
 import csv
+import geocoder
 
 #below is mamatas modules
 import os
@@ -99,6 +100,36 @@ def lambda_handler(event, context):
             processed_image = first_entry.get('processed_image')
             latitude = str(first_entry.get('latitude'))
             longitude = str(first_entry.get('longitude'))
+            #for addition details
+            print("data from GET api is :: ",first_entry)
+            date = str(first_entry.get("date_time"))
+            cropType = str(first_entry.get("vegetation_type"))
+            cropHeight = str(first_entry.get("vegetation_height"))
+            photoDate = str(first_entry.get("created_at"))
+
+            #Planting Date convertion
+            # Parse the original datetime string to a datetime object
+            planting_date = datetime.strptime(planting_date, "%Y-%m-%dT%H:%M:%S.%fZ")
+            photoDate = datetime.strptime(photoDate, "%Y-%m-%dT%H:%M:%S.%fZ")
+
+            # Format the datetime object to the desired format
+            planting_date = planting_date.strftime("%Y-%m-%d %p")
+            photoDate = photoDate.strftime("%Y-%m-%d %p")
+
+            #Fetch lat, long details of current location
+            latitude, longitude = get_current_location()
+
+            cropData = {
+                "Email": email,
+                #"Date": date,
+                "Latitude": latitude,
+                "Longitude": longitude,
+                "Planting Date": planting_date,
+                "Crop Type": cropType,
+                "Crop Height": cropHeight,
+                "Photo Date":photoDate
+            }
+            print("Crop Data is :: ",cropData)
             
             print(f"Email: {email}, ID: {user_id}")
             if(email not in usersList):
@@ -144,7 +175,7 @@ def lambda_handler(event, context):
             isEmailValid = True
             try:
                 print("mail is :: ",email)
-                send_email(email, response)
+                send_email(email, response, cropData)
             except Exception as e:
                 print("email is not verified",e)
                 isEmailValid = False
@@ -367,11 +398,11 @@ def func1(latitude,longitude):
         print("ffinal :: ",daily_dataframe)
         return daily_dataframe.to_json(orient='records')
         
-def send_email(mail, response):
+def send_email(mail, response, cropData):
     sesClient = boto3.client("ses",region_name ="us-east-2")
     print("actual ",response)
     data = json.loads(response)
-    html_table = data_to_html(data)
+    html_table = data_to_html(data, cropData)
     #print("html table ",html_table)
     emainResponse = sesClient.send_email(
         
@@ -393,19 +424,36 @@ def send_email(mail, response):
         )
 
 
-def data_to_html(data):
-    html_content = "<html><body><table border='1'><tr>"
+def data_to_html(data, cropData):
+    html_content = "<html><body>"
+
+    # Add cropData information above the table
+    html_content += "<div><br>"
+    for key, value in cropData.items():
+        html_content += f"<p><strong>{key}:</strong> {value}</p>"
+    html_content += "</div>"
+
+    # Create the table
+    html_content += "<table border='1'><tr>"
     headers = data[0].keys() if data else []
     for header in headers:
         html_content += f"<th>{header}</th>"
     html_content += "</tr>"
     
     for item in data:
-        print(item)
-    for item in data:
         html_content += "<tr>"
         for value in item.values():
             html_content += f"<td style='text-align: center;'>{value}</td>"
         html_content += "</tr>"
+    
     html_content += "</table></body></html>"
     return html_content
+
+def get_current_location():
+    # Get the current location using geocoder
+    g = geocoder.ip('me')
+    
+    # Extract the latitude and longitude
+    latitude, longitude = g.latlng
+    
+    return latitude, longitude
