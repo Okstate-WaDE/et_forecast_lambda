@@ -19,15 +19,10 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install dependencies for Lambda layer
+      - name: Install dependencies
         run: |
-          mkdir -p python
-          pip install --upgrade pip
-          pip install -r requirements.txt -t python
-
-      - name: Package Lambda layer
-        run: |
-          zip -r lambda_layer.zip python
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
       - name: Package Lambda function
         run: |
@@ -40,23 +35,12 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-2
 
-      - name: Create/Update Lambda layer
-        run: |
-          LAYER_VERSION=$(aws lambda publish-layer-version \
-            --layer-name my-lambda-layer \
-            --zip-file fileb://lambda_layer.zip \
-            --compatible-runtimes python3.12 \
-            --query Version --output text)
-          echo "LAYER_VERSION=$LAYER_VERSION" >> $GITHUB_ENV
-
       - name: Deploy Lambda function for dev branch
         if: github.ref == 'refs/heads/dev'
         run: |
           aws lambda update-function-code --function-name et_forecast_func_test --zip-file fileb://lambda_function.zip
-          aws lambda update-function-configuration --function-name et_forecast_func_test --layers arn:aws:lambda:us-east-2:${{ secrets.AWS_ACCOUNT_ID }}:layer:my-lambda-layer:$LAYER_VERSION
 
       - name: Deploy Lambda function for main branch
         if: github.ref == 'refs/heads/main'
         run: |
           aws lambda update-function-code --function-name et-forecast-func --zip-file fileb://lambda_function.zip
-          aws lambda update-function-configuration --function-name et-forecast-func --layers arn:aws:lambda:us-east-2:${{ secrets.AWS_ACCOUNT_ID }}:layer:my-lambda-layer:$LAYER_VERSION
