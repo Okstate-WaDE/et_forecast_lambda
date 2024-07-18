@@ -7,6 +7,7 @@ from datetime import datetime
 import numpy as np
 import csv
 import geocoder
+import reverse_geocode
 
 #below is mamatas modules
 import os
@@ -113,11 +114,11 @@ def lambda_handler(event, context):
             photoDate = datetime.strptime(photoDate, "%Y-%m-%dT%H:%M:%S.%fZ")
 
             # Format the datetime object to the desired format
-            planting_date = planting_date.strftime("%Y-%m-%d %p")
-            photoDate = photoDate.strftime("%Y-%m-%d %p")
+            planting_date = planting_date.strftime("%Y-%m-%d %H:%M:%S")
+            photoDate = photoDate.strftime("%Y-%m-%d %H:%M:%S")
 
             #Fetch lat, long details of current location
-            latitude, longitude = get_current_location()
+            locationDetails = get_current_location(latitude, longitude)
 
             cropData = {
                 "Email": email,
@@ -127,7 +128,8 @@ def lambda_handler(event, context):
                 "Planting Date": planting_date,
                 "Crop Type": cropType,
                 "Crop Height": cropHeight,
-                "Photo Date":photoDate
+                "Photo Date":photoDate,
+                "location-Details" : locationDetails
             }
             print("Crop Data is :: ",cropData)
             
@@ -449,11 +451,8 @@ def data_to_html(data, cropData):
     html_content += "</table></body></html>"
     return html_content
 
-def get_current_location():
-    # Get the current location using geocoder
-    g = geocoder.ip('me')
+def get_current_location(lat, long):
+    coord = (lat, long)
+    print("co-ordinates:: ",coord)
     
-    # Extract the latitude and longitude
-    latitude, longitude = g.latlng
-    
-    return latitude, longitude
+    return reverse_geocode.get(coord)
