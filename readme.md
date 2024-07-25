@@ -8,7 +8,7 @@ This code is a part of our overall goal of developing a globally-available, loca
 Irrigation accounts for and estimated 70% of freshwater use globally[^1]. However, local crop ET forecasts are currently unavailable for most farmers around the world. This is despite the fact that technology for generating and communicating (on the part of scientists, engineers, and technologists), and receiving (on the part of farmers) crop ET forecasts has never been more accessible.
 
 ## Approach
-Our approach for developing a globally-available, locally-tailored crop ET forecast tool uses the existing [Canopeo app](canopeoapp.com) and AWS.
+Our approach for developing a globally-available, locally-tailored crop ET forecast tool uses the existing [Canopeo app](https://canopeoapp.com) and AWS.
 
 ### Canopeo Mobile App
 Canopeo is a cross-platform mobile app that uses top-down photographs to estimate green canopy cover. The app collects certain information that is key to forecasting crop ET including
