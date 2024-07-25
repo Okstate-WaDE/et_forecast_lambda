@@ -42,7 +42,8 @@ The Lambda function is what this repo is set up to track. It is performs the fol
 7. Email CropET forecast
 8. Archive forecast and user data
 
-
+# Funding
+This work is funded by the U.S. Department of Agriculture, National Institute of Food and Agriculture, Data Science for Food and Agricultural Systems (DSFAS) program. Accession number 1030694. 
 
 [^1]:https://www.usgs.gov/special-topics/water-science-school/science/irrigation-water-use`
 
