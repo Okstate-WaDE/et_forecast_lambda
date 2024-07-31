@@ -77,9 +77,19 @@ jobs:
       - name: Deploy Lambda function for dev branch
         if: github.ref == 'refs/heads/dev'
         run: |
-          aws lambda update-function-configuration --function-name et_forecast_func_test --layers arn:aws:lambda:us-east-2:${{ secrets.AWS_ACCOUNT_ID }}:layer:et_forecast_dependencies:${{ env.LAYER_VERSION }}
           aws lambda update-function-code --function-name et_forecast_func_test --zip-file fileb://lambda_function.zip
-
+          LAYER_ARN=arn:aws:lambda:us-east-2:${{ secrets.AWS_ACCOUNT_ID }}:layer:generate-et-forecast-dependencies:${{ steps.publish_layer.outputs.layer_version }}
+          echo "Using Layer ARN: $LAYER_ARN"
+          echo "Waiting for function update to complete..."
+          while true; do
+            STATUS=$(aws lambda get-function-configuration --function-name et_forecast_func_test --query 'LastUpdateStatus' --output text)
+            if [ "$STATUS" == "Successful" ] || [ "$STATUS" == "Failed" ]; then
+              break
+            fi
+            echo "Current status: $STATUS. Waiting..."
+            sleep 10
+          done
+          aws lambda update-function-configuration --function-name et_forecast_func_test --layers $LAYER_ARN
       - name: Deploy Lambda function for main branch
         if: github.ref == 'refs/heads/main'
         run: |
