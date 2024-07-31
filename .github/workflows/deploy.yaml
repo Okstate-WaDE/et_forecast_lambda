@@ -39,7 +39,7 @@ jobs:
         id: publish_layer
         run: |
           LAYER_VERSION=$(aws lambda publish-layer-version --layer-name et_forecast_dependencies --zip-file fileb://layer.zip --query Version --output text)
-          echo "::set-output name=layer_version::$LAYER_VERSION"
+          echo "LAYER_VERSION=$LAYER_VERSION" >> $GITHUB_ENV
 
       - name: Add layer permissions
         run: |
@@ -77,13 +77,11 @@ jobs:
       - name: Deploy Lambda function for dev branch
         if: github.ref == 'refs/heads/dev'
         run: |
-          LAYER_VERSION=${{ needs.create-layer.outputs.layer_version }}
-          aws lambda update-function-configuration --function-name et_forecast_func_test --layers arn:aws:lambda:us-east-2:${{ secrets.AWS_ACCOUNT_ID }}:layer:et_forecast_dependencies:$LAYER_VERSION
+          aws lambda update-function-configuration --function-name et_forecast_func_test --layers arn:aws:lambda:us-east-2:${{ secrets.AWS_ACCOUNT_ID }}:layer:et_forecast_dependencies:${{ env.LAYER_VERSION }}
           aws lambda update-function-code --function-name et_forecast_func_test --zip-file fileb://lambda_function.zip
 
       - name: Deploy Lambda function for main branch
         if: github.ref == 'refs/heads/main'
         run: |
-          LAYER_VERSION=${{ needs.create-layer.outputs.layer_version }}
-          aws lambda update-function-configuration --function-name et-forecast-func --layers arn:aws:lambda:us-east-2:${{ secrets.AWS_ACCOUNT_ID }}:layer:et_forecast_dependencies:$LAYER_VERSION
+          aws lambda update-function-configuration --function-name et-forecast-func --layers arn:aws:lambda:us-east-2:${{ secrets.AWS_ACCOUNT_ID }}:layer:et_forecast_dependencies:${{ env.LAYER_VERSION }}
           aws lambda update-function-code --function-name et-forecast-func --zip-file fileb://lambda_function.zip
