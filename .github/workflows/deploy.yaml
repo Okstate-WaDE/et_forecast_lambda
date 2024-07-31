@@ -40,10 +40,18 @@ jobs:
         run: |
           LAYER_VERSION=$(aws lambda publish-layer-version --layer-name et_forecast_dependencies --zip-file fileb://layer.zip --query Version --output text)
           echo "::set-output name=layer_version::$LAYER_VERSION"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-east-2
 
       - name: Add layer permissions
         run: |
           aws lambda add-layer-version-permission --layer-name et_forecast_dependencies --version-number ${{ steps.publish_layer.outputs.layer_version }} --statement-id public-access --action lambda:GetLayerVersion --principal "*"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-east-2
 
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -77,13 +85,19 @@ jobs:
       - name: Deploy Lambda function for dev branch
         if: github.ref == 'refs/heads/dev'
         run: |
-          LAYER_VERSION=${{ needs.create-layer.outputs.publish_layer.outputs.layer_version }}
-          aws lambda update-function-configuration --function-name et_forecast_func_test --layers arn:aws:lambda:us-east-2:${{ secrets.AWS_ACCOUNT_ID }}:layer:et_forecast_dependencies:$LAYER_VERSION
+          aws lambda update-function-configuration --function-name et_forecast_func_test --layers arn:aws:lambda:us-east-2:${{ secrets.AWS_ACCOUNT_ID }}:layer:et_forecast_dependencies:${{ needs.create-layer.outputs.publish_layer.outputs.layer_version }}
           aws lambda update-function-code --function-name et_forecast_func_test --zip-file fileb://lambda_function.zip
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-east-2
 
       - name: Deploy Lambda function for main branch
         if: github.ref == 'refs/heads/main'
         run: |
-          LAYER_VERSION=${{ needs.create-layer.outputs.publish_layer.outputs.layer_version }}
-          aws lambda update-function-configuration --function-name et-forecast-func --layers arn:aws:lambda:us-east-2:${{ secrets.AWS_ACCOUNT_ID }}:layer:et_forecast_dependencies:$LAYER_VERSION
+          aws lambda update-function-configuration --function-name et-forecast-func --layers arn:aws:lambda:us-east-2:${{ secrets.AWS_ACCOUNT_ID }}:layer:et_forecast_dependencies:${{ needs.create-layer.outputs.publish_layer.outputs.layer_version }}
           aws lambda update-function-code --function-name et-forecast-func --zip-file fileb://lambda_function.zip
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-east-2
