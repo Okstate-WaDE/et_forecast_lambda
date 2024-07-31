@@ -1,7 +1,1 @@
-awswrangler
-requests==2.31.0
 requests-toolbelt==1.0.0
-openmeteo_requests==1.2.0
-requests_cache==1.2.0
-retry_requests==2.0.0
-geocoder
