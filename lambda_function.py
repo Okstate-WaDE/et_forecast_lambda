@@ -6,8 +6,7 @@ import base64
 from datetime import datetime
 import numpy as np
 import csv
-import geocoder
-import reverse_geocode
+# import reverse_geocode
 
 #below is mamatas modules
 import os
@@ -118,7 +117,7 @@ def lambda_handler(event, context):
             photoDate = photoDate.strftime("%Y-%m-%d %H:%M:%S")
 
             #Fetch lat, long details of current location
-            locationDetails = get_current_location(latitude, longitude)
+            locationDetails = "Null"#get_current_location(latitude, longitude)
 
             cropData = {
                 "Email": email,
@@ -129,7 +128,7 @@ def lambda_handler(event, context):
                 "Crop Type": cropType,
                 "Crop Height": cropHeight,
                 "Photo Date":photoDate,
-                "location-Details" : locationDetails
+                "Location" : locationDetails
             }
             print("Crop Data is :: ",cropData)
             
@@ -454,5 +453,10 @@ def data_to_html(data, cropData):
 def get_current_location(lat, long):
     coord = (lat, long)
     print("co-ordinates:: ",coord)
-    
-    return reverse_geocode.get(coord)
+    location = reverse_geocode.get(coord)
+    result = {
+        'city': location['city'],
+        'state': location['state'],
+        'country': location['country']
+    }
+    return result
