@@ -1,16 +1,14 @@
 import json
 import boto3
 import requests
-from requests_toolbelt.multipart.decoder import MultipartDecoder
-import base64
 from datetime import datetime
-import numpy as np
 import csv
 # import reverse_geocode
+from geopy.geocoders import Nominatim
 
-#below is mamatas modules
+
 import os
-# os.chdir("/tmp")
+os.chdir("/tmp")
 
 def lambda_handler(event, context):
     
@@ -49,7 +47,7 @@ def lambda_handler(event, context):
     print("current_dir :: ",current_dir)
     
     # Construct the full file path
-    file_path = os.path.join(current_dir, 'users.csv')
+    file_path = os.path.join(current_dir, 'betausers.csv')
     
     # Read the CSV file
     with open(file_path, mode='r') as file:
@@ -66,7 +64,7 @@ def lambda_handler(event, context):
     
     
     data = ""
-    try:
+    try:    
         response = requests.get(url, headers=headers)
         #print("response :: ",response.json())
         print("response is :: ",response)
@@ -77,9 +75,11 @@ def lambda_handler(event, context):
         data = response.json()
         print("test2")
         print("d is",len(data))
+
+        
         
         # Beta_users_list
-        beta_users_list = ["mamata.pandey@okstate.edu","jeff.sadler@okstate.edu", "saikumar.payyavula@okstate.edu","fieldtest@test.com"]
+        # beta_users_list = ["mamata.pandey@okstate.edu","jeff.sadler@okstate.edu", "saikumar.payyavula@okstate.edu","fieldtest@test.com"]
         if data:
             first_entry = data[0]
             email = first_entry.get('email')
@@ -89,8 +89,8 @@ def lambda_handler(event, context):
             adjustments = first_entry.get('adjustments')
             original_image = first_entry.get('original_image')
             processed_image = first_entry.get('processed_image')
-            latitude = str(first_entry.get('latitude'))
-            longitude = str(first_entry.get('longitude'))
+            latitude = float(first_entry.get('latitude'))
+            longitude = float(first_entry.get('longitude'))
             #for addition details
             print("data from GET api is :: ",first_entry)
             date = str(first_entry.get("date_time"))
@@ -108,7 +108,8 @@ def lambda_handler(event, context):
             photoDate = photoDate.strftime("%Y-%m-%d %H:%M:%S")
 
             #Fetch lat, long details of current location
-            locationDetails = "Null"#get_current_location(latitude, longitude)
+            locationDetails = get_current_location(12.0, 13.45)
+            print("location Details :: ",locationDetails)
 
             cropData = {
                 "Email": email,
@@ -132,7 +133,7 @@ def lambda_handler(event, context):
             
             
             # 4th step calling et-forecast analysig function
-            response = func1(latitude, longitude)
+            #response = func1(latitude, longitude)
             #here update changes
             client = boto3.client('lambda')
             payload = {
@@ -145,7 +146,8 @@ def lambda_handler(event, context):
                 Payload=json.dumps(payload)
             )
             response_payload = json.loads(response['Payload'].read())
-            print("response from ANOTHER LAMBDA----->>"json.dumps(response_payload))
+            response = response_payload["body"]
+            print("response from ANOTHER LAMBDA----->>",json.dumps(response_payload))
             print("et-response type: ",type(response))
             print("et-response : ",response)
             # 5th step sending an email to the user.
@@ -209,118 +211,7 @@ def lambda_handler(event, context):
     
     
     #end new code here <-----
-    '''
-    # Sample data from Postman
-    print(event['isBase64Encoded'])
-    if event['isBase64Encoded']:
-        data = base64.b64decode(event['body'])
-    else:
-        data = event['body'].encode()
-    content_type = event['headers'].get('Content-Type')
     
-    # Parse the multipart data
-    print("data = ",data)
-    decoder = MultipartDecoder(data, content_type)
-    
-    # Extract form fields and values
-    form_data = {}
-    # print("parts :: ",decoder.parts)
-    # params for defined for string to flaot conversion logic
-    params = ['canopy_cover','planting_date','adjustments','original_image','processed_image'] #'latitude', 'longitude','cropheight',
-    
-    datalist=[]
-    # allparams defined for is value is present or not logic
-    #allParams = ['latitude', 'longitude','cropheight','email','image','calcanopy','plantingdate']
-    count = 0
-    
-    mail =''
-    latitude = ''
-    longitude = ''
-    originalImage = ''
-    for part in decoder.parts:
-        try:
-            # Attempt to decode the content as UTF-8 (text)
-            content = part.content.decode('utf-8')
-        except UnicodeDecodeError:
-            # If decoding fails, treat it as binary data
-            #content = part.content
-            content = base64.b64encode(part.content).decode('utf-8')
-
-        content_disposition = part.headers[b'Content-Disposition'].decode('utf-8')
-        name_start = content_disposition.find('name="') + len('name="')
-        name_end = content_disposition.find('"', name_start)
-        field_name = content_disposition[name_start:name_end]
-        
-        print("field_name:", field_name)
-        #print("content:", content)
-        if field_name == 'email':
-            mail = content
-            print("mail is : ",mail)
-        if field_name == 'latitude':
-            latitude = content
-        if field_name == 'longitude':
-            longitude = content
-        if field_name == 'original_image' or field_name == 'processed_image' :
-            imageContent = content
-            json_data = ''
-            try:
-                json_data = json.loads(imageContent)
-            except Exception as e:
-                return {
-                   'statusCode': 500,
-                    'body': 'Json format issue..! in '+field_name #json.dumps(form_data)
-                }
-            print("originalImage ",json_data)
-        #start verification for value is present or not
-        
-        #end verification
-        if field_name in params:
-            if len(content) == 0:
-                return {
-                   'statusCode': 500,
-                    'body': 'Something went wrong in the mondatory fields..!' #json.dumps(form_data)
-                }
-            # type conversion from string to float
-            
-            print(" c type is",type(content))
-        form_data[field_name] = content
-        #checking here all parameters should be validate
-        if field_name in params:
-            count = count +1;
-            datalist.append(field_name)
-    
-    #check the mandotory fields covered or not logic
-    if count != 5:
-        filtered_list = [x for x in params if x not in datalist]
-        return {
-                   'statusCode': 500,
-                    'body': 'All Mandotory fields are not sent. missing fields are = '+str(filtered_list) #json.dumps(form_data)
-                }
-    
-    #load it into s3
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    
-    json_data = json.dumps(form_data, indent=2)
-    s3_bucket_name = 'et-forecast'
-    s3_object_key = f'{mail}#{timestamp}.json'
-    s3_object_key = s3_object_key.replace('"','')
-    
-
-    s3 = boto3.client('s3')
-    s3.put_object(Body=json_data, Bucket=s3_bucket_name, Key=s3_object_key)
-    response = func1(latitude, longitude)
-    
-    #email part started
-    try:
-        send_email(mail, response)
-    except Exception as e:
-        print("email is not verified")
-    print(type(response))
-    #email part ended
-    return {
-        'statusCode': 200,
-        'body': response#'Successfully Data Stored into S3 Bucket..!' #json.dumps(form_data)
-    }'''
 
 
 
@@ -377,12 +268,15 @@ def data_to_html(data, cropData):
     return html_content
 
 def get_current_location(lat, long):
-    coord = (lat, long)
-    print("co-ordinates:: ",coord)
-    location = reverse_geocode.get(coord)
+    # coord = (lat, long)
+    # print("co-ordinates:: ",coord)
+    # location = reverse_geocode.get(coord)
+    geolocator = Nominatim(user_agent="canopeo")
+    location = geolocator.reverse((lat, long))
+    print("geopy iss--->>>> ",location.address)
     result = {
-        'city': location['city'],
-        'state': location['state'],
-        'country': location['country']
+        'city': location.raw['address'].get('city', ''),
+        'state': location.raw['address'].get('state', ''),
+        'country': location.raw['address'].get('country', '')
     }
     return result
