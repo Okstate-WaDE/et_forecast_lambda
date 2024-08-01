@@ -1,10 +1,10 @@
 import json
 import boto3
 import requests
-from requests_toolbelt.multipart.decoder import MultipartDecoder
-import base64
+# from requests_toolbelt.multipart.decoder import MultipartDecoder
+# import base64
 from datetime import datetime
-import numpy as np
+# import numpy as np
 import csv
 # import reverse_geocode
 
@@ -49,7 +49,7 @@ def lambda_handler(event, context):
     print("current_dir :: ",current_dir)
     
     # Construct the full file path
-    file_path = os.path.join(current_dir, 'users.csv')
+    file_path = os.path.join(current_dir, 'betausers.csv')
     
     # Read the CSV file
     with open(file_path, mode='r') as file:
@@ -79,7 +79,7 @@ def lambda_handler(event, context):
         print("d is",len(data))
         
         # Beta_users_list
-        beta_users_list = ["mamata.pandey@okstate.edu","jeff.sadler@okstate.edu", "saikumar.payyavula@okstate.edu","fieldtest@test.com"]
+        # beta_users_list = ["mamata.pandey@okstate.edu","jeff.sadler@okstate.edu", "saikumar.payyavula@okstate.edu","fieldtest@test.com"]
         if data:
             first_entry = data[0]
             email = first_entry.get('email')
@@ -132,7 +132,7 @@ def lambda_handler(event, context):
             
             
             # 4th step calling et-forecast analysig function
-            response = func1(latitude, longitude)
+            #response = func1(latitude, longitude)
             #here update changes
             client = boto3.client('lambda')
             payload = {
