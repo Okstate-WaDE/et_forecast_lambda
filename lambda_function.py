@@ -145,7 +145,7 @@ def lambda_handler(event, context):
                 Payload=json.dumps(payload)
             )
             response_payload = json.loads(response['Payload'].read())
-            print("response from ANOTHER LAMBDA----->>"json.dumps(response_payload))
+            print("response from ANOTHER LAMBDA----->>",json.dumps(response_payload))
             print("et-response type: ",type(response))
             print("et-response : ",response)
             # 5th step sending an email to the user.
