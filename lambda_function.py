@@ -10,7 +10,7 @@ import csv
 
 #below is mamatas modules
 import os
-# os.chdir("/tmp")
+os.chdir("/tmp")
 
 def lambda_handler(event, context):
     
