@@ -53,6 +53,7 @@ jobs:
         if: steps.check_size.outputs.exceeds_max_size == 'true'
         run: |
           echo "Uploading dependencies_layer.zip to S3..."
+          aws configure set region us-east-2
           aws s3 cp dependencies_layer.zip s3://et-forecast/dependencies_layer.zip
           echo "Upload complete."
 
