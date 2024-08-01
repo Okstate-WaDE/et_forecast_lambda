@@ -3,7 +3,7 @@ import boto3
 import requests
 from datetime import datetime
 import csv
-# import reverse_geocode
+import reverse_geocode
 
 import os
 os.chdir("/tmp")
@@ -104,7 +104,7 @@ def lambda_handler(event, context):
             photoDate = photoDate.strftime("%Y-%m-%d %H:%M:%S")
 
             #Fetch lat, long details of current location
-            locationDetails = "Null"#get_current_location(latitude, longitude)
+            locationDetails = get_current_location(latitude, longitude)
 
             cropData = {
                 "Email": email,
