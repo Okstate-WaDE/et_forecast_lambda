@@ -22,7 +22,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt -t python
+          mkdir -p python
+          pip install -r requirements.txt --target python --no-cache-dir
           # Remove unnecessary files
           find python -name "*.dist-info" -type d -exec rm -rf {} +
           find python -name "*.egg-info" -type d -exec rm -rf {} +
@@ -31,7 +32,8 @@ jobs:
 
       - name: Package dependencies into Lambda Layer
         run: |
-          zip -r dependencies_layer.zip python
+          cd python
+          zip -r ../dependencies_layer.zip .
         working-directory: .
 
       - name: Package Lambda function
