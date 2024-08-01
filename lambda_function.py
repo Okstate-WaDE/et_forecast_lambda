@@ -104,7 +104,8 @@ def lambda_handler(event, context):
             photoDate = photoDate.strftime("%Y-%m-%d %H:%M:%S")
 
             #Fetch lat, long details of current location
-            locationDetails = get_current_location(latitude, longitude)
+            locationDetails = get_current_location(12.0, 13.45)
+            print("location Details :: ",locationDetails)
 
             cropData = {
                 "Email": email,
