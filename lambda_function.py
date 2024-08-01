@@ -145,6 +145,7 @@ def lambda_handler(event, context):
                 Payload=json.dumps(payload)
             )
             response_payload = json.loads(response['Payload'].read())
+            response = response_payload["body"]
             print("response from ANOTHER LAMBDA----->>",json.dumps(response_payload))
             print("et-response type: ",type(response))
             print("et-response : ",response)
