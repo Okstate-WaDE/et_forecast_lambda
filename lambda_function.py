@@ -10,12 +10,7 @@ import csv
 
 #below is mamatas modules
 import os
-os.chdir("/tmp")        
-import pandas as pd
-import openmeteo_requests
-import requests_cache
-from retry_requests import retry
-import urllib.parse
+# os.chdir("/tmp")
 
 def lambda_handler(event, context):
     
@@ -28,10 +23,6 @@ def lambda_handler(event, context):
     print("event is :: ",event)
     #print("event body type :: ",type(event['body']))
     print("request version is :: ",requests.__version__)
-    '''print("openmeteo_requests version is::",requests_toolbelt.__version__)
-    print("requests_cache version is :: ",requests_cache.__version__)
-    print("retry_requests version is :: ",retry_requests.__version)
-    print("requests_toolbelt version is ::",requests_toolbelt.__version__)'''
 
     #Handling multiple events structures. 
     if 'body' in event:
@@ -142,6 +133,19 @@ def lambda_handler(event, context):
             
             # 4th step calling et-forecast analysig function
             response = func1(latitude, longitude)
+            #here update changes
+            client = boto3.client('lambda')
+            payload = {
+                'latitude': latitude,
+                'longitude': longitude
+            }
+            response = client.invoke(
+                FunctionName='generate_et_forecast_test',
+                InvocationType='RequestResponse',  # Use 'Event' for asynchronous invocation
+                Payload=json.dumps(payload)
+            )
+            response_payload = json.loads(response['Payload'].read())
+            print("response from ANOTHER LAMBDA----->>"json.dumps(response_payload))
             print("et-response type: ",type(response))
             print("et-response : ",response)
             # 5th step sending an email to the user.
@@ -320,56 +324,6 @@ def lambda_handler(event, context):
 
 
 
-
-def func1(latitude,longitude):
-        # Setup the Open-Meteo API client with cache and retry on error
-        cache_session = requests_cache.CachedSession('.cache', expire_after = 3600)
-        retry_session = retry(cache_session, retries = 5, backoff_factor = 0.2)
-        openmeteo = openmeteo_requests.Client(session = retry_session)
-        
-        latitude = float(latitude)
-        longitude = float(longitude)
-        url = "https://api.open-meteo.com/v1/forecast"
-        params = {
-                "latitude": latitude,
-                "longitude": longitude,
-                "daily": "et0_fao_evapotranspiration",
-                "wind_speed_unit": "ms",
-                "timezone": "auto",
-                "forecast_days": 16
-        }
-            
-        responses = openmeteo.weather_api(url, params=params)
-            
-        # Process response. 
-        response = responses[0]
-            
-        daily = response.Daily()
-        daily_et0_fao_evapotranspiration = daily.Variables(0).ValuesAsNumpy()
-        
-        #Rounding the digits after decimal point
-        daily_et0_fao_evapotranspiration = np.round(daily_et0_fao_evapotranspiration, 2)
-
-        daily_data = {"Valid Date": pd.date_range(
-                start = pd.to_datetime(daily.Time(), unit = "s", utc = True),
-                end = pd.to_datetime(daily.TimeEnd(), unit = "s", utc = True),
-                freq = pd.Timedelta(seconds = daily.Interval()),
-                inclusive = "left" 
-                ).strftime('%Y-%m-%d')}
-            
-        daily_data["Reference ET (in mm)"] = daily_et0_fao_evapotranspiration
-        daily_dataframe = pd.DataFrame(data = daily_data)
-        #print("type is")
-        #print(type(daily_dataframe['Valid Date'][0]))
-        daily_dataframe['Valid Date'] = daily_dataframe['Valid Date'].astype(str)
-        daily_dataframe['Reference ET (in inches)'] = np.round((daily_dataframe['Reference ET (in mm)']/25.4),2).astype(str)
-        daily_dataframe['Reference ET (in mm)'] = daily_dataframe['Reference ET (in mm)'].astype(str)
-        
-
-        # Rename Valid date to Date
-        daily_dataframe = daily_dataframe.rename(columns ={"Valid Date" : "Date"})
-        print("ffinal :: ",daily_dataframe)
-        return daily_dataframe.to_json(orient='records')
         
 def send_email(mail, response, cropData):
     sesClient = boto3.client("ses",region_name ="us-east-2")
