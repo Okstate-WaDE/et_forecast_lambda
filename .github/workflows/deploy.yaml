@@ -52,7 +52,9 @@ jobs:
       - name: Upload to S3 if size exceeds 50 MB
         if: steps.check_size.outputs.exceeds_max_size == 'true'
         run: |
+          echo "Uploading dependencies_layer.zip to S3..."
           aws s3 cp dependencies_layer.zip s3://et-forecast/dependencies_layer.zip
+          echo "Upload complete."
 
       - name: Package Lambda function
         run: |
@@ -69,7 +71,8 @@ jobs:
         if: steps.check_size.outputs.exceeds_max_size == 'true'
         id: publish_layer_s3
         run: |
-          LAYER_VERSION=$(aws lambda publish-layer-version --layer-name et-forecast-dependencies --content S3Bucket=your-bucket-name,S3Key=dependencies_layer.zip --query Version --output text)
+          echo "Publishing Lambda Layer from S3..."
+          LAYER_VERSION=$(aws lambda publish-layer-version --layer-name et-forecast-dependencies --content S3Bucket=et-forecast,S3Key=dependencies_layer.zip --query Version --output text)
           echo "Layer version: $LAYER_VERSION"
           echo "::set-output name=layer_version::$LAYER_VERSION"
 
@@ -77,6 +80,7 @@ jobs:
         if: steps.check_size.outputs.exceeds_max_size == 'false'
         id: publish_layer_local
         run: |
+          echo "Publishing Lambda Layer from local zip..."
           LAYER_VERSION=$(aws lambda publish-layer-version --layer-name et-forecast-dependencies --zip-file fileb://dependencies_layer.zip --query Version --output text)
           echo "Layer version: $LAYER_VERSION"
           echo "::set-output name=layer_version::$LAYER_VERSION"
