@@ -139,34 +139,6 @@ def lambda_handler(event, context):
                     'body': "Success."#response #json.dumps(form_data)
                 }
             
-            # 2nd step Prepare the data to be written to JSON
-            '''json_data = {
-                "email": email,
-                "id": user_id,
-                "canopy_cover": canopy_cover,
-                "planting_date": planting_date,
-                "adjustments": adjustments,
-                "original_image": original_image,
-                "processed_image": processed_image,
-                "latitude": latitude,
-                "longitude": longitude
-            }
-            
-            # Write data to a JSON file
-            with open('/tmp/data.json', 'w') as json_file:
-                json.dump(json_data, json_file)
-            print("Json file created to store into S3 bucket")
-            
-            #3rd step load json file  into S3
-            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-            
-            json_data = json.dumps(json_data, indent=2)
-            s3_bucket_name = 'et-forecast'
-            s3_object_key = f'{email}#{timestamp}.json'
-            s3_object_key = s3_object_key.replace('"','')
-            
-            s3 = boto3.client('s3')
-            s3.put_object(Body=json_data, Bucket=s3_bucket_name, Key=s3_object_key)'''
             
             # 4th step calling et-forecast analysig function
             response = func1(latitude, longitude)
