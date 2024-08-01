@@ -32,7 +32,7 @@ jobs:
       - name: Package dependencies into Lambda Layer
         run: |
           cd python
-          zip -r ../dependencies_layer.zip .
+          zip -r dependencies_layer.zip python
         working-directory: .
 
       - name: Package Lambda function
