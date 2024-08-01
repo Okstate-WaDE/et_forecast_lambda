@@ -1,71 +1,37 @@
-name: Deploy Lambda Function
+name: Deploy to AWS Lambda
 
 on:
   push:
     branches:
       - dev
-      - main
+      - master
 
 jobs:
-  create-layer:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v2
 
       - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.12"
-
-      - name: Create directory for layer
-        run: |
-          mkdir -p python/lib/python3.12/site-packages
-          pip install -r requirements.txt -t python/lib/python3.12/site-packages/
-
-      - name: Package layer
-        run: |
-          zip -r layer.zip python
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-2
-
-      - name: Publish layer
-        id: publish_layer
-        run: |
-          LAYER_VERSION=$(aws lambda publish-layer-version --layer-name et_forecast_dependencies --zip-file fileb://layer.zip --query Version --output text)
-          echo "LAYER_VERSION=$LAYER_VERSION" >> $GITHUB_ENV
-
-      - name: Add layer permissions
-        run: |
-          aws lambda add-layer-version-permission --layer-name et_forecast_dependencies --version-number ${{ env.LAYER_VERSION }} --statement-id public-access --action lambda:GetLayerVersion --principal "*"
-
-  build-and-deploy:
-    runs-on: ubuntu-latest
-    needs: create-layer
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v2
         with:
           python-version: "3.12"
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements.txt -t python
 
       - name: Package Lambda function
         run: |
-          zip -r lambda_function.zip .
+          zip -r lambda_function.zip lambda_function.py
+
+      - name: Package dependencies into Lambda Layer
+        run: |
+          zip -r dependencies_layer.zip python
+        working-directory: .
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -74,11 +40,17 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-2
 
-      - name: Deploy Lambda function for dev branch
-        if: github.ref == 'refs/heads/dev'
+      - name: Publish Lambda Layer
+        id: publish_layer
+        run: |
+          LAYER_VERSION=$(aws lambda publish-layer-version --layer-name et-forecast-dependencies --zip-file fileb://dependencies_layer.zip --query Version --output text)
+          echo "Layer version: $LAYER_VERSION"
+          echo "::set-output name=layer_version::$LAYER_VERSION"
+
+      - name: Deploy Lambda function
         run: |
           aws lambda update-function-code --function-name et_forecast_func_test --zip-file fileb://lambda_function.zip
-          LAYER_ARN=arn:aws:lambda:us-east-2:${{ secrets.AWS_ACCOUNT_ID }}:layer:et_forecast_dependencies:${{ env.LAYER_VERSION }}
+          LAYER_ARN=arn:aws:lambda:us-east-2:${{ secrets.AWS_ACCOUNT_ID }}:layer:et-forecast-dependencies:${{ steps.publish_layer.outputs.layer_version }}
           echo "Using Layer ARN: $LAYER_ARN"
           echo "Waiting for function update to complete..."
           while true; do
@@ -90,9 +62,4 @@ jobs:
             sleep 10
           done
           aws lambda update-function-configuration --function-name et_forecast_func_test --layers $LAYER_ARN
-
-      - name: Deploy Lambda function for main branch
-        if: github.ref == 'refs/heads/main'
-        run: |
-          aws lambda update-function-configuration --function-name et-forecast-func --layers arn:aws:lambda:us-east-2:${{ secrets.AWS_ACCOUNT_ID }}:layer:et_forecast_dependencies:${{ env.LAYER_VERSION }}
-          aws lambda update-function-code --function-name et-forecast-func --zip-file fileb://lambda_function.zip
+        if: github.ref == 'refs/heads/dev'
