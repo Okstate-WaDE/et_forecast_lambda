@@ -14,7 +14,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Set up  Python
+      - name: Set up Python
         uses: actions/setup-python@v2
         with:
           python-version: "3.12"
@@ -35,6 +35,21 @@ jobs:
           zip -r dependencies_layer.zip python
         working-directory: .
 
+      - name: Install additional dependencies
+        run: |
+          mkdir -p additional_python
+          pip install -r additional-requirements.txt --target additional_python --no-cache-dir
+          # Remove unnecessary files
+          find additional_python -name "*.dist-info" -type d -exec rm -rf {} +
+          find additional_python -name "*.egg-info" -type d -exec rm -rf {} +
+          find additional_python -name "tests" -type d -exec rm -rf {} +
+          find additional_python -name "__pycache__" -type d -exec rm -rf {} +
+
+      - name: Package additional dependencies into Lambda Layer
+        run: |
+          zip -r additional_dependencies_layer.zip additional_python
+        working-directory: .
+
       - name: Package Lambda function
         run: |
           zip -r lambda_function.zip lambda_function.py betausers.csv
@@ -53,11 +68,20 @@ jobs:
           echo "Layer version: $LAYER_VERSION"
           echo "::set-output name=layer_version::$LAYER_VERSION"
 
+      - name: Publish Additional Lambda Layer
+        id: publish_additional_layer
+        run: |
+          ADDITIONAL_LAYER_VERSION=$(aws lambda publish-layer-version --layer-name et-forecast-additional-dependencies --zip-file fileb://additional_dependencies_layer.zip --query Version --output text)
+          echo "Additional Layer version: $ADDITIONAL_LAYER_VERSION"
+          echo "::set-output name=additional_layer_version::$ADDITIONAL_LAYER_VERSION"
+
       - name: Deploy Lambda function
         run: |
           aws lambda update-function-code --function-name et_forecast_func_test --zip-file fileb://lambda_function.zip
           LAYER_ARN=arn:aws:lambda:us-east-2:${{ secrets.AWS_ACCOUNT_ID }}:layer:et-forecast-dependencies:${{ steps.publish_layer.outputs.layer_version }}
+          ADDITIONAL_LAYER_ARN=arn:aws:lambda:us-east-2:${{ secrets.AWS_ACCOUNT_ID }}:layer:et-forecast-additional-dependencies:${{ steps.publish_additional_layer.outputs.additional_layer_version }}
           echo "Using Layer ARN: $LAYER_ARN"
+          echo "Using Additional Layer ARN: $ADDITIONAL_LAYER_ARN"
           echo "Waiting for function update to complete..."
           while true; do
             STATUS=$(aws lambda get-function-configuration --function-name et_forecast_func_test --query 'LastUpdateStatus' --output text)
@@ -67,5 +91,5 @@ jobs:
             echo "Current status: $STATUS. Waiting..."
             sleep 10
           done
-          aws lambda update-function-configuration --function-name et_forecast_func_test --layers $LAYER_ARN
+          aws lambda update-function-configuration --function-name et_forecast_func_test --layers $LAYER_ARN $ADDITIONAL_LAYER_ARN
         if: github.ref == 'refs/heads/dev'
