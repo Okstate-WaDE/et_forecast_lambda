@@ -14,12 +14,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Set up Python
+      - name: Set up  Python
         uses: actions/setup-python@v2
         with:
           python-version: "3.12"
 
-      - name: Install main dependencies
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           mkdir -p python
@@ -30,24 +30,9 @@ jobs:
           find python -name "tests" -type d -exec rm -rf {} +
           find python -name "__pycache__" -type d -exec rm -rf {} +
 
-      - name: Package main dependencies into Lambda Layer
+      - name: Package dependencies into Lambda Layer
         run: |
-          zip -r main_dependencies_layer.zip python
-        working-directory: .
-
-      - name: Install additional dependencies
-        run: |
-          mkdir -p python
-          pip install -r additional-requirements.txt --target python --no-cache-dir
-          # Remove unnecessary files
-          find python -name "*.dist-info" -type d -exec rm -rf {} +
-          find python -name "*.egg-info" -type d -exec rm -rf {} +
-          find python -name "tests" -type d -exec rm -rf {} +
-          find python -name "__pycache__" -type d -exec rm -rf {} +
-
-      - name: Package additional dependencies into Lambda Layer
-        run: |
-          zip -r additional_dependencies_layer.zip python
+          zip -r dependencies_layer.zip python
         working-directory: .
 
       - name: Package Lambda function
@@ -61,27 +46,18 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-2
 
-      - name: Publish Main Lambda Layer
-        id: publish_main_layer
+      - name: Publish Lambda Layer
+        id: publish_layer
         run: |
-          MAIN_LAYER_VERSION=$(aws lambda publish-layer-version --layer-name et-forecast-main-dependencies --zip-file fileb://main_dependencies_layer.zip --query Version --output text)
-          echo "Main Layer version: $MAIN_LAYER_VERSION"
-          echo "::set-output name=main_layer_version::$MAIN_LAYER_VERSION"
-
-      - name: Publish Additional Lambda Layer
-        id: publish_additional_layer
-        run: |
-          ADDITIONAL_LAYER_VERSION=$(aws lambda publish-layer-version --layer-name et-forecast-additional-dependencies --zip-file fileb://additional_dependencies_layer.zip --query Version --output text)
-          echo "Additional Layer version: $ADDITIONAL_LAYER_VERSION"
-          echo "::set-output name=additional_layer_version::$ADDITIONAL_LAYER_VERSION"
+          LAYER_VERSION=$(aws lambda publish-layer-version --layer-name et-forecast-dependencies --zip-file fileb://dependencies_layer.zip --query Version --output text)
+          echo "Layer version: $LAYER_VERSION"
+          echo "::set-output name=layer_version::$LAYER_VERSION"
 
       - name: Deploy Lambda function
         run: |
           aws lambda update-function-code --function-name et_forecast_func_test --zip-file fileb://lambda_function.zip
-          MAIN_LAYER_ARN=arn:aws:lambda:us-east-2:${{ secrets.AWS_ACCOUNT_ID }}:layer:et-forecast-main-dependencies:${{ steps.publish_main_layer.outputs.main_layer_version }}
-          ADDITIONAL_LAYER_ARN=arn:aws:lambda:us-east-2:${{ secrets.AWS_ACCOUNT_ID }}:layer:et-forecast-additional-dependencies:${{ steps.publish_additional_layer.outputs.additional_layer_version }}
-          echo "Using Main Layer ARN: $MAIN_LAYER_ARN"
-          echo "Using Additional Layer ARN: $ADDITIONAL_LAYER_ARN"
+          LAYER_ARN=arn:aws:lambda:us-east-2:${{ secrets.AWS_ACCOUNT_ID }}:layer:et-forecast-dependencies:${{ steps.publish_layer.outputs.layer_version }}
+          echo "Using Layer ARN: $LAYER_ARN"
           echo "Waiting for function update to complete..."
           while true; do
             STATUS=$(aws lambda get-function-configuration --function-name et_forecast_func_test --query 'LastUpdateStatus' --output text)
@@ -91,5 +67,5 @@ jobs:
             echo "Current status: $STATUS. Waiting..."
             sleep 10
           done
-          aws lambda update-function-configuration --function-name et_forecast_func_test --layers $MAIN_LAYER_ARN $ADDITIONAL_LAYER_ARN
+          aws lambda update-function-configuration --function-name et_forecast_func_test --layers $LAYER_ARN
         if: github.ref == 'refs/heads/dev'
