@@ -89,8 +89,8 @@ def lambda_handler(event, context):
             adjustments = first_entry.get('adjustments')
             original_image = first_entry.get('original_image')
             processed_image = first_entry.get('processed_image')
-            latitude = str(first_entry.get('latitude'))
-            longitude = str(first_entry.get('longitude'))
+            latitude = float(first_entry.get('latitude'))
+            longitude = float(first_entry.get('longitude'))
             #for addition details
             print("data from GET api is :: ",first_entry)
             date = str(first_entry.get("date_time"))
@@ -275,8 +275,8 @@ def get_current_location(lat, long):
     location = geolocator.reverse((lat, long))
     print("geopy iss--->>>> ",location.address)
     result = {
-        'city': location['city'],
-        'state': location['state'],
-        'country': location['country']
+        'city': location.raw['address'].get('city', ''),
+        'state': location.raw['address'].get('state', ''),
+        'country': location.raw['address'].get('country', '')
     }
     return result
