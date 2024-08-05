@@ -3,7 +3,9 @@ import boto3
 import requests
 from datetime import datetime
 import csv
-import reverse_geocode
+# import reverse_geocode
+from geopy.geocoders import Nominatim
+
 
 import os
 os.chdir("/tmp")
@@ -62,7 +64,7 @@ def lambda_handler(event, context):
     
     
     data = ""
-    try:
+    try:    
         response = requests.get(url, headers=headers)
         #print("response :: ",response.json())
         print("response is :: ",response)
@@ -73,6 +75,8 @@ def lambda_handler(event, context):
         data = response.json()
         print("test2")
         print("d is",len(data))
+
+        
         
         # Beta_users_list
         # beta_users_list = ["mamata.pandey@okstate.edu","jeff.sadler@okstate.edu", "saikumar.payyavula@okstate.edu","fieldtest@test.com"]
@@ -264,9 +268,12 @@ def data_to_html(data, cropData):
     return html_content
 
 def get_current_location(lat, long):
-    coord = (lat, long)
-    print("co-ordinates:: ",coord)
-    location = reverse_geocode.get(coord)
+    # coord = (lat, long)
+    # print("co-ordinates:: ",coord)
+    # location = reverse_geocode.get(coord)
+    geolocator = Nominatim(user_agent="canopeo")
+    location = geolocator.reverse((lat, long))
+    print("geopy iss--->>>> ",location.address)
     result = {
         'city': location['city'],
         'state': location['state'],
