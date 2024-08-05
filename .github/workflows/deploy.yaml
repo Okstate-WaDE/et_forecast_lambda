@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - dev
-      - master
+      - main
 
 jobs:
   deploy:
@@ -87,17 +87,28 @@ jobs:
 
       - name: Deploy Lambda function
         run: |
-          aws lambda update-function-code --function-name et_forecast_func_test --zip-file fileb://lambda_function.zip
+          if [ "${GITHUB_REF##*/}" == "dev" ]; then
+            FUNCTION_NAME="et_forecast_func_test"
+          elif [ "${GITHUB_REF##*/}" == "main" ]; then
+            FUNCTION_NAME="et-forecast-func"
+          else
+            echo "Branch is not 'dev' or 'main'. Skipping deployment."
+            exit 0
+          fi
+
+          aws lambda update-function-code --function-name $FUNCTION_NAME --zip-file fileb://lambda_function.zip
+
           LAYER_ARN=arn:aws:lambda:us-east-2:${{ secrets.AWS_ACCOUNT_ID }}:layer:et-forecast-dependencies:${{ steps.publish_layer_s3.outputs.layer_version || steps.publish_layer_local.outputs.layer_version }}
           echo "Using Layer ARN: $LAYER_ARN"
           echo "Waiting for function update to complete..."
+
           while true; do
-            STATUS=$(aws lambda get-function-configuration --function-name et_forecast_func_test --query 'LastUpdateStatus' --output text)
+            STATUS=$(aws lambda get-function-configuration --function-name $FUNCTION_NAME --query 'LastUpdateStatus' --output text)
             if [ "$STATUS" == "Successful" ] || [ "$STATUS" == "Failed" ]; then
               break
             fi
             echo "Current status: $STATUS. Waiting..."
             sleep 10
           done
-          aws lambda update-function-configuration --function-name et_forecast_func_test --layers $LAYER_ARN
-        if: github.ref == 'refs/heads/dev'
+
+          aws lambda update-function-configuration --function-name $FUNCTION_NAME --layers $LAYER_ARN
