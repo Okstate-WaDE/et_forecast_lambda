@@ -1,20 +1,14 @@
 import json
 import boto3
 import requests
-from requests_toolbelt.multipart.decoder import MultipartDecoder
-import base64
 from datetime import datetime
-import numpy as np
 import csv
+# import reverse_geocode
+from geopy.geocoders import Nominatim
 
-#below is mamatas modules
+
 import os
-os.chdir("/tmp")        
-import pandas as pd
-import openmeteo_requests
-import requests_cache
-from retry_requests import retry
-import urllib.parse
+os.chdir("/tmp")
 
 def lambda_handler(event, context):
     
@@ -27,10 +21,6 @@ def lambda_handler(event, context):
     print("event is :: ",event)
     #print("event body type :: ",type(event['body']))
     print("request version is :: ",requests.__version__)
-    '''print("openmeteo_requests version is::",requests_toolbelt.__version__)
-    print("requests_cache version is :: ",requests_cache.__version__)
-    print("retry_requests version is :: ",retry_requests.__version)
-    print("requests_toolbelt version is ::",requests_toolbelt.__version__)'''
 
     #Handling multiple events structures. 
     if 'body' in event:
@@ -57,7 +47,7 @@ def lambda_handler(event, context):
     print("current_dir :: ",current_dir)
     
     # Construct the full file path
-    file_path = os.path.join(current_dir, 'users.csv')
+    file_path = os.path.join(current_dir, 'betausers.csv')
     
     # Read the CSV file
     with open(file_path, mode='r') as file:
@@ -74,7 +64,7 @@ def lambda_handler(event, context):
     
     
     data = ""
-    try:
+    try:    
         response = requests.get(url, headers=headers)
         #print("response :: ",response.json())
         print("response is :: ",response)
@@ -85,9 +75,11 @@ def lambda_handler(event, context):
         data = response.json()
         print("test2")
         print("d is",len(data))
+
+        
         
         # Beta_users_list
-        beta_users_list = ["mamata.pandey@okstate.edu","jeff.sadler@okstate.edu", "saikumar.payyavula@okstate.edu","fieldtest@test.com"]
+        # beta_users_list = ["mamata.pandey@okstate.edu","jeff.sadler@okstate.edu", "saikumar.payyavula@okstate.edu","fieldtest@test.com"]
         if data:
             first_entry = data[0]
             email = first_entry.get('email')
@@ -97,8 +89,40 @@ def lambda_handler(event, context):
             adjustments = first_entry.get('adjustments')
             original_image = first_entry.get('original_image')
             processed_image = first_entry.get('processed_image')
-            latitude = str(first_entry.get('latitude'))
-            longitude = str(first_entry.get('longitude'))
+            latitude = float(first_entry.get('latitude'))
+            longitude = float(first_entry.get('longitude'))
+            #for addition details
+            print("data from GET api is :: ",first_entry)
+            date = str(first_entry.get("date_time"))
+            cropType = str(first_entry.get("vegetation_type"))
+            cropHeight = str(first_entry.get("vegetation_height"))
+            photoDate = str(first_entry.get("created_at"))
+
+            #Planting Date convertion
+            # Parse the original datetime string to a datetime object
+            planting_date = datetime.strptime(planting_date, "%Y-%m-%dT%H:%M:%S.%fZ")
+            photoDate = datetime.strptime(photoDate, "%Y-%m-%dT%H:%M:%S.%fZ")
+
+            # Format the datetime object to the desired format
+            planting_date = planting_date.strftime("%Y-%m-%d %H:%M:%S")
+            photoDate = photoDate.strftime("%Y-%m-%d %H:%M:%S")
+
+            #Fetch lat, long details of current location
+            locationDetails = get_current_location(latitude, longitude)
+            print("location Details :: ",locationDetails)
+
+            cropData = {
+                "Email": email,
+                #"Date": date,
+                "Latitude": latitude,
+                "Longitude": longitude,
+                "Planting Date": planting_date,
+                "Crop Type": cropType,
+                "Crop Height": cropHeight,
+                "Photo Date":photoDate,
+                "Location" : locationDetails
+            }
+            print("Crop Data is :: ",cropData)
             
             print(f"Email: {email}, ID: {user_id}")
             if(email not in usersList):
@@ -107,44 +131,30 @@ def lambda_handler(event, context):
                     'body': "Success."#response #json.dumps(form_data)
                 }
             
-            # 2nd step Prepare the data to be written to JSON
-            '''json_data = {
-                "email": email,
-                "id": user_id,
-                "canopy_cover": canopy_cover,
-                "planting_date": planting_date,
-                "adjustments": adjustments,
-                "original_image": original_image,
-                "processed_image": processed_image,
-                "latitude": latitude,
-                "longitude": longitude
-            }
-            
-            # Write data to a JSON file
-            with open('/tmp/data.json', 'w') as json_file:
-                json.dump(json_data, json_file)
-            print("Json file created to store into S3 bucket")
-            
-            #3rd step load json file  into S3
-            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-            
-            json_data = json.dumps(json_data, indent=2)
-            s3_bucket_name = 'et-forecast'
-            s3_object_key = f'{email}#{timestamp}.json'
-            s3_object_key = s3_object_key.replace('"','')
-            
-            s3 = boto3.client('s3')
-            s3.put_object(Body=json_data, Bucket=s3_bucket_name, Key=s3_object_key)'''
             
             # 4th step calling et-forecast analysig function
-            response = func1(latitude, longitude)
+            #response = func1(latitude, longitude)
+            #here update changes
+            client = boto3.client('lambda')
+            payload = {
+                'latitude': latitude,
+                'longitude': longitude
+            }
+            response = client.invoke(
+                FunctionName='generate_et_forecast_test',
+                InvocationType='RequestResponse',  # Use 'Event' for asynchronous invocation
+                Payload=json.dumps(payload)
+            )
+            response_payload = json.loads(response['Payload'].read())
+            response = response_payload["body"]
+            print("response from ANOTHER LAMBDA----->>",json.dumps(response_payload))
             print("et-response type: ",type(response))
             print("et-response : ",response)
             # 5th step sending an email to the user.
             isEmailValid = True
             try:
                 print("mail is :: ",email)
-                send_email(email, response)
+                send_email(email, response, cropData)
             except Exception as e:
                 print("email is not verified",e)
                 isEmailValid = False
@@ -201,177 +211,16 @@ def lambda_handler(event, context):
     
     
     #end new code here <-----
-    '''
-    # Sample data from Postman
-    print(event['isBase64Encoded'])
-    if event['isBase64Encoded']:
-        data = base64.b64decode(event['body'])
-    else:
-        data = event['body'].encode()
-    content_type = event['headers'].get('Content-Type')
     
-    # Parse the multipart data
-    print("data = ",data)
-    decoder = MultipartDecoder(data, content_type)
-    
-    # Extract form fields and values
-    form_data = {}
-    # print("parts :: ",decoder.parts)
-    # params for defined for string to flaot conversion logic
-    params = ['canopy_cover','planting_date','adjustments','original_image','processed_image'] #'latitude', 'longitude','cropheight',
-    
-    datalist=[]
-    # allparams defined for is value is present or not logic
-    #allParams = ['latitude', 'longitude','cropheight','email','image','calcanopy','plantingdate']
-    count = 0
-    
-    mail =''
-    latitude = ''
-    longitude = ''
-    originalImage = ''
-    for part in decoder.parts:
-        try:
-            # Attempt to decode the content as UTF-8 (text)
-            content = part.content.decode('utf-8')
-        except UnicodeDecodeError:
-            # If decoding fails, treat it as binary data
-            #content = part.content
-            content = base64.b64encode(part.content).decode('utf-8')
 
-        content_disposition = part.headers[b'Content-Disposition'].decode('utf-8')
-        name_start = content_disposition.find('name="') + len('name="')
-        name_end = content_disposition.find('"', name_start)
-        field_name = content_disposition[name_start:name_end]
+
+
         
-        print("field_name:", field_name)
-        #print("content:", content)
-        if field_name == 'email':
-            mail = content
-            print("mail is : ",mail)
-        if field_name == 'latitude':
-            latitude = content
-        if field_name == 'longitude':
-            longitude = content
-        if field_name == 'original_image' or field_name == 'processed_image' :
-            imageContent = content
-            json_data = ''
-            try:
-                json_data = json.loads(imageContent)
-            except Exception as e:
-                return {
-                   'statusCode': 500,
-                    'body': 'Json format issue..! in '+field_name #json.dumps(form_data)
-                }
-            print("originalImage ",json_data)
-        #start verification for value is present or not
-        
-        #end verification
-        if field_name in params:
-            if len(content) == 0:
-                return {
-                   'statusCode': 500,
-                    'body': 'Something went wrong in the mondatory fields..!' #json.dumps(form_data)
-                }
-            # type conversion from string to float
-            
-            print(" c type is",type(content))
-        form_data[field_name] = content
-        #checking here all parameters should be validate
-        if field_name in params:
-            count = count +1;
-            datalist.append(field_name)
-    
-    #check the mandotory fields covered or not logic
-    if count != 5:
-        filtered_list = [x for x in params if x not in datalist]
-        return {
-                   'statusCode': 500,
-                    'body': 'All Mandotory fields are not sent. missing fields are = '+str(filtered_list) #json.dumps(form_data)
-                }
-    
-    #load it into s3
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    
-    json_data = json.dumps(form_data, indent=2)
-    s3_bucket_name = 'et-forecast'
-    s3_object_key = f'{mail}#{timestamp}.json'
-    s3_object_key = s3_object_key.replace('"','')
-    
-
-    s3 = boto3.client('s3')
-    s3.put_object(Body=json_data, Bucket=s3_bucket_name, Key=s3_object_key)
-    response = func1(latitude, longitude)
-    
-    #email part started
-    try:
-        send_email(mail, response)
-    except Exception as e:
-        print("email is not verified")
-    print(type(response))
-    #email part ended
-    return {
-        'statusCode': 200,
-        'body': response#'Successfully Data Stored into S3 Bucket..!' #json.dumps(form_data)
-    }'''
-
-
-
-
-def func1(latitude,longitude):
-        # Setup the Open-Meteo API client with cache and retry on error
-        cache_session = requests_cache.CachedSession('.cache', expire_after = 3600)
-        retry_session = retry(cache_session, retries = 5, backoff_factor = 0.2)
-        openmeteo = openmeteo_requests.Client(session = retry_session)
-        
-        latitude = float(latitude)
-        longitude = float(longitude)
-        url = "https://api.open-meteo.com/v1/forecast"
-        params = {
-                "latitude": latitude,
-                "longitude": longitude,
-                "daily": "et0_fao_evapotranspiration",
-                "wind_speed_unit": "ms",
-                "timezone": "auto",
-                "forecast_days": 16
-        }
-            
-        responses = openmeteo.weather_api(url, params=params)
-            
-        # Process response. 
-        response = responses[0]
-            
-        daily = response.Daily()
-        daily_et0_fao_evapotranspiration = daily.Variables(0).ValuesAsNumpy()
-        
-        #Rounding the digits after decimal point
-        daily_et0_fao_evapotranspiration = np.round(daily_et0_fao_evapotranspiration, 2)
-
-        daily_data = {"Valid Date": pd.date_range(
-                start = pd.to_datetime(daily.Time(), unit = "s", utc = True),
-                end = pd.to_datetime(daily.TimeEnd(), unit = "s", utc = True),
-                freq = pd.Timedelta(seconds = daily.Interval()),
-                inclusive = "left" 
-                ).strftime('%Y-%m-%d')}
-            
-        daily_data["Reference ET (in mm)"] = daily_et0_fao_evapotranspiration
-        daily_dataframe = pd.DataFrame(data = daily_data)
-        #print("type is")
-        #print(type(daily_dataframe['Valid Date'][0]))
-        daily_dataframe['Valid Date'] = daily_dataframe['Valid Date'].astype(str)
-        daily_dataframe['Reference ET (in inches)'] = np.round((daily_dataframe['Reference ET (in mm)']/25.4),2).astype(str)
-        daily_dataframe['Reference ET (in mm)'] = daily_dataframe['Reference ET (in mm)'].astype(str)
-        
-
-        # Rename Valid date to Date
-        daily_dataframe = daily_dataframe.rename(columns ={"Valid Date" : "Date"})
-        print("ffinal :: ",daily_dataframe)
-        return daily_dataframe.to_json(orient='records')
-        
-def send_email(mail, response):
+def send_email(mail, response, cropData):
     sesClient = boto3.client("ses",region_name ="us-east-2")
     print("actual ",response)
     data = json.loads(response)
-    html_table = data_to_html(data)
+    html_table = data_to_html(data, cropData)
     #print("html table ",html_table)
     emainResponse = sesClient.send_email(
         
@@ -393,19 +242,50 @@ def send_email(mail, response):
         )
 
 
-def data_to_html(data):
-    html_content = "<html><body><table border='1'><tr>"
+def data_to_html(data, cropData):
+    html_content = "<html><body>"
+
+    # Add cropData information above the table
+    html_content += "<div><br>"
+    for key, value in cropData.items():
+        html_content += f"<p><strong>{key}:</strong> {value}</p>"
+    html_content += "</div>"
+
+    # Create the table
+    html_content += "<table border='1'><tr>"
     headers = data[0].keys() if data else []
     for header in headers:
         html_content += f"<th>{header}</th>"
     html_content += "</tr>"
     
     for item in data:
-        print(item)
-    for item in data:
         html_content += "<tr>"
         for value in item.values():
             html_content += f"<td style='text-align: center;'>{value}</td>"
         html_content += "</tr>"
+    
     html_content += "</table></body></html>"
     return html_content
+
+def get_current_location(lat, long):
+    # coord = (lat, long)
+    # print("co-ordinates:: ",coord)
+    # location = reverse_geocode.get(coord)
+    geolocator = Nominatim(user_agent="canopeo")
+    location = geolocator.reverse((lat, long))
+    print("geopy iss--->>>> ",location.address)
+    
+    city_tuple =  location.raw['address'].get('city', ''),
+    state_tuple =  location.raw['address'].get('state', ''),
+    country_tuple =  location.raw['address'].get('country', '')
+
+    # Retrieve the 0th index value if it's a tuple
+    city = city_tuple if not isinstance(city_tuple, tuple) else city_tuple[0]
+    state = state_tuple if not isinstance(state_tuple, tuple) else state_tuple[0]
+    country = country_tuple if not isinstance(country_tuple, tuple) else country_tuple[0]
+
+    print("city ",city)
+    print("state :: ",state)
+    print("country :: ",country)
+    formatted_location = f"{city}, {state}, {country}"
+    return formatted_location
