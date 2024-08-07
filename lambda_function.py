@@ -274,9 +274,9 @@ def get_current_location(lat, long):
     geolocator = Nominatim(user_agent="canopeo")
     location = geolocator.reverse((lat, long))
     print("geopy iss--->>>> ",location.address)
-    result = {
-        'city': location.raw['address'].get('city', ''),
-        'state': location.raw['address'].get('state', ''),
-        'country': location.raw['address'].get('country', '')
-    }
-    return result
+    
+    city =  location.raw['address'].get('city', ''),
+    state =  location.raw['address'].get('state', ''),
+    country =  location.raw['address'].get('country', '')
+    formatted_location = f"{city}, {state}, {country}"
+    return formatted_location
