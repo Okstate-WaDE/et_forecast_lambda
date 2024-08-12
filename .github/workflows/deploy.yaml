@@ -1,4 +1,4 @@
-name: Deploy Lambda Function
+name: Deploy to AWS Lambda
 
 on:
   push:
@@ -12,21 +12,42 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v2
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v2
         with:
           python-version: "3.12"
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          mkdir -p python
+          pip install -r requirements.txt --target python --no-cache-dir
+          # Remove unnecessary files
+          find python -name "*.dist-info" -type d -exec rm -rf {} +
+          find python -name "*.egg-info" -type d -exec rm -rf {} +
+          find python -name "tests" -type d -exec rm -rf {} +
+          find python -name "__pycache__" -type d -exec rm -rf {} +
 
-      - name: Package Lambda function
+      - name: Package dependencies into Lambda Layer
         run: |
-          zip -r lambda_function.zip .
+          zip -r dependencies_layer.zip python
+        working-directory: .
+
+      - name: Check zip file size
+        id: check_size
+        run: |
+          FILE_SIZE=$(stat -c%s "dependencies_layer.zip")
+          MAX_SIZE=52428800 # 50 MB in bytes
+          echo "File size: $FILE_SIZE bytes"
+          if [ "$FILE_SIZE" -gt "$MAX_SIZE" ]; then
+            echo "File size exceeds 50 MB"
+            echo "::set-output name=exceeds_max_size::true"
+          else
+            echo "File size is within the limit"
+            echo "::set-output name=exceeds_max_size::false"
+          fi
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -35,12 +56,59 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-2
 
-      - name: Deploy Lambda function for dev branch
-        if: github.ref == 'refs/heads/dev'
+      - name: Upload to S3 if size exceeds 50 MB
+        if: steps.check_size.outputs.exceeds_max_size == 'true'
         run: |
-          aws lambda update-function-code --function-name et_forecast_func_test --zip-file fileb://lambda_function.zip
+          echo "Uploading dependencies_layer.zip to S3..."
+          aws s3 cp dependencies_layer.zip s3://et-forecast/dependencies_layer.zip
+          echo "Upload complete."
 
-      - name: Deploy Lambda function for main branch
-        if: github.ref == 'refs/heads/main'
+      - name: Package Lambda function
         run: |
-          aws lambda update-function-code --function-name et-forecast-func --zip-file fileb://lambda_function.zip
+          zip -r lambda_function.zip lambda_function.py betausers.csv
+
+      - name: Publish Lambda Layer from S3
+        if: steps.check_size.outputs.exceeds_max_size == 'true'
+        id: publish_layer_s3
+        run: |
+          echo "Publishing Lambda Layer from S3..."
+          LAYER_VERSION=$(aws lambda publish-layer-version --layer-name et-forecast-dependencies --content S3Bucket=et-forecast,S3Key=dependencies_layer.zip --query Version --output text)
+          echo "Layer version: $LAYER_VERSION"
+          echo "::set-output name=layer_version::$LAYER_VERSION"
+
+      - name: Publish Lambda Layer from local zip
+        if: steps.check_size.outputs.exceeds_max_size == 'false'
+        id: publish_layer_local
+        run: |
+          echo "Publishing Lambda Layer from local zip..."
+          LAYER_VERSION=$(aws lambda publish-layer-version --layer-name et-forecast-dependencies --zip-file fileb://dependencies_layer.zip --query Version --output text)
+          echo "Layer version: $LAYER_VERSION"
+          echo "::set-output name=layer_version::$LAYER_VERSION"
+
+      - name: Deploy Lambda function
+        run: |
+          if [ "${GITHUB_REF##*/}" == "dev" ]; then
+            FUNCTION_NAME="et_forecast_func_test"
+          elif [ "${GITHUB_REF##*/}" == "main" ]; then
+            FUNCTION_NAME="et-forecast-func"
+          else
+            echo "Branch is not 'dev' or 'main'. Skipping deployment."
+            exit 0
+          fi
+
+          aws lambda update-function-code --function-name $FUNCTION_NAME --zip-file fileb://lambda_function.zip
+
+          LAYER_ARN=arn:aws:lambda:us-east-2:${{ secrets.AWS_ACCOUNT_ID }}:layer:et-forecast-dependencies:${{ steps.publish_layer_s3.outputs.layer_version || steps.publish_layer_local.outputs.layer_version }}
+          echo "Using Layer ARN: $LAYER_ARN"
+          echo "Waiting for function update to complete..."
+
+          while true; do
+            STATUS=$(aws lambda get-function-configuration --function-name $FUNCTION_NAME --query 'LastUpdateStatus' --output text)
+            if [ "$STATUS" == "Successful" ] || [ "$STATUS" == "Failed" ]; then
+              break
+            fi
+            echo "Current status: $STATUS. Waiting..."
+            sleep 10
+          done
+
+          aws lambda update-function-configuration --function-name $FUNCTION_NAME --layers $LAYER_ARN
