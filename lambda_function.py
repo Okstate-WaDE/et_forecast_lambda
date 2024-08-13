@@ -272,20 +272,22 @@ def get_current_location(lat, long):
     # print("co-ordinates:: ",coord)
     # location = reverse_geocode.get(coord)
     geolocator = Nominatim(user_agent="canopeo")
-    location = geolocator.reverse((lat, long))
-    print("geopy iss--->>>> ",location.address)
+    try:
+        location = geolocator.reverse((lat, long))
+        
+        if location is None:
+            print(f"Reverse geocoding failed for coordinates: ({lat}, {long})")
+            return "Location not found"
+
+        print("geopy iss--->>>> ", location.address)
+        
+        city = location.raw['address'].get('city', 'Unknown City')
+        state = location.raw['address'].get('state', 'Unknown State')
+        country = location.raw['address'].get('country', 'Unknown Country')
+
+        formatted_location = f"{city}, {state}, {country}"
+        return formatted_location
     
-    city_tuple =  location.raw['address'].get('city', ''),
-    state_tuple =  location.raw['address'].get('state', ''),
-    country_tuple =  location.raw['address'].get('country', '')
-
-    # Retrieve the 0th index value if it's a tuple
-    city = city_tuple if not isinstance(city_tuple, tuple) else city_tuple[0]
-    state = state_tuple if not isinstance(state_tuple, tuple) else state_tuple[0]
-    country = country_tuple if not isinstance(country_tuple, tuple) else country_tuple[0]
-
-    print("city ",city)
-    print("state :: ",state)
-    print("country :: ",country)
-    formatted_location = f"{city}, {state}, {country}"
-    return formatted_location
+    except Exception as e:
+        print(f"An error occurred during reverse geocoding: {e}")
+        return "Location not found"
