@@ -104,7 +104,7 @@ def lambda_handler(event, context):
             photoDate = datetime.strptime(photoDate, "%Y-%m-%dT%H:%M:%S.%fZ")
 
             # Format the datetime object to the desired format
-            planting_date = planting_date.strftime("%Y-%m-%d %H:%M:%S")
+            planting_date = planting_date.strftime("%Y-%m-%d")
             photoDate = photoDate.strftime("%Y-%m-%d %H:%M:%S")
 
             #Fetch lat, long details of current location
@@ -114,8 +114,8 @@ def lambda_handler(event, context):
             cropData = {
                 "Email": email,
                 #"Date": date,
-                "Latitude": latitude,
-                "Longitude": longitude,
+                "Latitude": round(latitude, 3),
+                "Longitude": round(longitude, 3),
                 "Planting Date": planting_date,
                 "Crop Type": cropType,
                 "Crop Height": cropHeight,
