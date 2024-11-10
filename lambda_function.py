@@ -138,8 +138,13 @@ def lambda_handler(event, context):
             client = boto3.client('lambda')
             payload = {
                 'latitude': latitude,
-                'longitude': longitude
+                'longitude': longitude,
+                'date_time': photoDate,
+                'planting_date': planting_date,
+                'vegetation_type': cropType,
+                'vegetation_height': cropHeight
             }
+            
             response = client.invoke(
                 FunctionName='generate_et_forecast_test',
                 InvocationType='RequestResponse',  # Use 'Event' for asynchronous invocation
