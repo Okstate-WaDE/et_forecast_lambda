@@ -5,7 +5,8 @@ from datetime import datetime
 import csv
 # import reverse_geocode
 from geopy.geocoders import Nominatim
-
+import pytz
+from timezonefinder import TimezoneFinder
 
 import os
 os.chdir("/tmp")
@@ -103,6 +104,16 @@ def lambda_handler(event, context):
             planting_date = datetime.strptime(planting_date, "%Y-%m-%dT%H:%M:%S.%fZ")
             photoDate = datetime.strptime(photoDate, "%Y-%m-%dT%H:%M:%S.%fZ")
 
+            # Finding Timezone for the given location
+            tf = TimezoneFinder()
+            timezone_str = tf.timezone_at(lng = longitude, lat = latitude)
+           
+            if timezone_str:
+                local_timezone = pytz.timezone(timezone_str)        #Converting to local timezone
+                # Converting from UTC to local time
+                planting_date = planting_date.replace(tzinfo=pytz.utc).astimezone(local_timezone)
+                photoDate = photoDate.replace(tzinfo=pytz.utc).astimezone(local_timezone)
+            
             # Format the datetime object to the desired format
             planting_date = planting_date.strftime("%Y-%m-%d")
             photoDate = photoDate.strftime("%Y-%m-%d %H:%M:%S")
@@ -214,13 +225,8 @@ def lambda_handler(event, context):
                     'body': 'No Data found with the provided username..!' #json.dumps(form_data)
                 }
     
-    
     #end new code here <-----
-    
-
-
-
-        
+            
 def send_email(mail, response, cropData):
     sesClient = boto3.client("ses",region_name ="us-east-2")
     print("actual ",response)
@@ -296,3 +302,4 @@ def get_current_location(lat, long):
     except Exception as e:
         print(f"An error occurred during reverse geocoding: {e}")
         return "Location not found"
+        
