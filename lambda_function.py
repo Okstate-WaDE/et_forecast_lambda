@@ -6,7 +6,7 @@ from datetime import datetime
 import csv
 # import reverse_geocode
 from geopy.geocoders import Nominatim
-from zoneinfor import ZoneInfo
+from zoneinfo import ZoneInfo
 from timezonefinder import TimezoneFinder
 
 import os
